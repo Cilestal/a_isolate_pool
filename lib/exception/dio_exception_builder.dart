@@ -8,7 +8,7 @@ class DioExceptionBuilder implements AExceptionBuilder {
   AException build(anyException, stack) {
     if (anyException is DioError) {
       if (anyException.error is AException) {
-        return anyException.error;
+        return anyException.error as AException;
       }
     }
     return null;

@@ -19,12 +19,11 @@
 //OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 //WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-/// 如果您从AException派生了异常类，请确保你的异常实现类中不要包含Lambda表达式函数或其它block函数
-class AException {
-  AException(this.error, {this.exceptionType});
-
+class AException implements Exception {
   final String error;
   final Type exceptionType;
+
+  AException(this.error, {this.exceptionType});
 
   @override
   String toString() {

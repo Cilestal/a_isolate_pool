@@ -25,10 +25,11 @@ import 'package:stack_trace/stack_trace.dart';
 
 class StackFormat {
   StackFormat(this.stackTrace);
+
   final dynamic stackTrace;
 
   String toJson() {
-    final Map<String, dynamic> errorJson = Map<String, dynamic>();
+    final Map<String, dynamic> errorJson = <String, dynamic>{};
     if (stackTrace != null) {
       errorJson['stacktrace'] = _encodeStackTrace(stackTrace);
     }
@@ -41,14 +42,14 @@ class StackFormat {
 
   List<Map<String, dynamic>> _encodeStackTrace(dynamic stackTrace) {
     assert(stackTrace is String || stackTrace is StackTrace);
-    final Chain chain = stackTrace is StackTrace
-        ? new Chain.forTrace(stackTrace)
-        : new Chain.parse(stackTrace);
+    final Chain chain = stackTrace is StackTrace ? Chain.forTrace(stackTrace) : Chain.parse(stackTrace.toString());
 
     final List<Map<String, dynamic>> frames = <Map<String, dynamic>>[];
     for (int t = 0; t < chain.traces.length; t += 1) {
       frames.addAll(chain.traces[t].frames.map(_encodeStackTraceFrame));
-      if (t < chain.traces.length - 1) frames.add(_asynchronousGapFrameJson);
+      if (t < chain.traces.length - 1) {
+        frames.add(_asynchronousGapFrameJson);
+      }
     }
 
     final jsonFrames = frames.reversed.toList();
@@ -63,20 +64,17 @@ class StackFormat {
       'in_app': !frame.isCore,
     };
 
-    if (frame.uri.pathSegments.isNotEmpty)
-      json['filename'] = frame.uri.pathSegments.last;
+    if (frame.uri.pathSegments.isNotEmpty) json['filename'] = frame.uri.pathSegments.last;
 
     return json;
   }
 
-  final Map<String, dynamic> _asynchronousGapFrameJson =
-      const <String, dynamic>{
+  final Map<String, dynamic> _asynchronousGapFrameJson = const <String, dynamic>{
     'abs_path': '<asynchronous suspension>',
   };
 
   String _absolutePathForCrashReport(Frame frame) {
-    if (frame.uri.scheme != 'dart' && frame.uri.scheme != 'package')
-      return frame.uri.pathSegments.last;
+    if (frame.uri.scheme != 'dart' && frame.uri.scheme != 'package') return frame.uri.pathSegments.last;
 
     return '${frame.uri}';
   }

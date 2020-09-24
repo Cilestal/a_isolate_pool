@@ -21,7 +21,9 @@
 
 import 'dart:async';
 import 'dart:isolate';
+
 import '../exception/a_exception_factory.dart';
+import 'runnable.dart';
 import 'types.dart';
 
 class ThreadService {
@@ -40,8 +42,7 @@ class ThreadService {
 
   ///构建一个线程服务
   ///@param String tag 线程标识
-  ThreadService.build([String tag, AExceptionFactory factory])
-      : _tag = tag ?? _randomTag() {
+  ThreadService.build([String tag, AExceptionFactory factory]) : _tag = tag ?? _randomTag() {
     logger(LOG_LEVEL.INFO, "IsolatePool", "building isolate $_tag");
     _client = _IsolateClient(_tag, factory);
   }
@@ -60,37 +61,21 @@ class ThreadService {
     }
   }
 
-  ///在线程中执行runnable
-  ///@param runnable 要执行的函数实体
-  ///The function must be a top-level function or a static method that can be
-  ///called with a single argument,that is, a compile-time constant function
-  ///value which accepts at least one positional parameter and has at most one
-  /// required positional parameter.
-  FutureOr<R> run<T, R>(ARunnable<T, R> runnable, T param) {
-    return delay(null, runnable, param);
+  FutureOr<O> run<A, B, C, D, O>(Runnable<A, B, C, D, O> runnable) {
+    return delay(null, runnable);
   }
 
-  ///在线程中延迟执行runnable
-  ///@param runnable 要执行的函数实体
-  ///The function must be a top-level function or a static method that can be
-  ///called with a single argument,that is, a compile-time constant function
-  ///value which accepts at least one positional parameter and has at most one
-  /// required positional parameter.
-  FutureOr<R> delay<T, R>(
-      Duration duration, ARunnable<T, R> runnable, T param) {
-    return _client.send(duration, runnable, param);
+  FutureOr<O> delay<A, B, C, D, O>(Duration duration, Runnable<A, B, C, D, O> runnable) {
+    return _client.send(duration, runnable);
   }
 
-  ///线程是否在运行
-  ///@return true 正在运行
   bool get isRunning => _client._working;
 
   static String _randomTag() {
     return DateTime.now().millisecondsSinceEpoch.toString();
   }
 
-  static void _threadServiceLogger(
-      LOG_LEVEL level, String tag, String message) {
+  static void _threadServiceLogger(LOG_LEVEL level, String tag, String message) {
     if (null != _IsolateServer.loggerPort) {
       _IsolateServer.loggerPort.send(_ServiceLog(level, tag, message));
     } else {
@@ -108,7 +93,7 @@ class _IsolateClient {
   final String _tag;
   final AExceptionFactory _exceptionFactory;
 
-  final Map<int, Completer> _responseMap = Map<int, Completer>();
+  final Map<int, Completer> _responseMap = <int, Completer>{};
   int _reqSeqSeed = 0;
 
   final ReceivePort _receivePort = ReceivePort();
@@ -125,11 +110,11 @@ class _IsolateClient {
       assert(errorData is List<dynamic>);
       assert(errorData.length == 2);
       final Exception exception = Exception(errorData[0]);
-      final StackTrace stack = StackTrace.fromString(errorData[1]);
+      final StackTrace stack = StackTrace.fromString(errorData[1].toString());
       Zone.current.handleUncaughtError(exception, stack);
     });
 
-    Completer initCompleter = Completer();
+    final Completer initCompleter = Completer();
     _receivePort.listen(
         (dynamic response) {
           if (response is _ServiceResponse) {
@@ -147,43 +132,36 @@ class _IsolateClient {
             initCompleter.complete();
           } else if (response is _ServiceLog) {
             if (!isThread()) {
-              ThreadService._threadServiceLogger(
-                  LOG_LEVEL.INFO, response.tag, response.message);
+              ThreadService._threadServiceLogger(LOG_LEVEL.INFO, response.tag, response.message);
             }
           }
         },
         onError: (error) {
-          ThreadService._threadServiceLogger(
-              LOG_LEVEL.INFO, _tag, "unknown error ${error.toString()}");
+          ThreadService._threadServiceLogger(LOG_LEVEL.INFO, _tag, "unknown error ${error.toString()}");
         },
         cancelOnError: true,
         onDone: () {
           _working = false;
-          ThreadService._threadServiceLogger(
-              LOG_LEVEL.INFO, _tag, "thread client closed");
+          ThreadService._threadServiceLogger(LOG_LEVEL.INFO, _tag, "thread client closed");
         });
 
-    final initParam =
-        _ServiceInit(_receivePort.sendPort, _tag, _exceptionFactory);
+    final initParam = _ServiceInit(_receivePort.sendPort, _tag, _exceptionFactory);
     _nativeThread = await Isolate.spawn(_nativeService, initParam,
-        onExit: _receivePort.sendPort,
-        errorsAreFatal: true,
-        onError: _errorPort.sendPort);
+        onExit: _receivePort.sendPort, errorsAreFatal: true, onError: _errorPort.sendPort);
 
     return initCompleter.future;
   }
 
-  Future<R> send<T, R>(Duration duration, ARunnable<T, R> runnable, T param) {
-    Completer<R> completer = Completer<R>();
-    int runnableIndex = _seq();
+  Future<O> send<A, B, C, D, O>(Duration duration, Runnable<A, B, C, D, O> runnable) {
+    final Completer<O> completer = Completer<O>();
+    final int runnableIndex = _seq();
     _responseMap[runnableIndex] = completer;
-    _serverPort
-        .send(_ServiceRequest<T, R>(duration, runnableIndex, runnable, param));
+    _serverPort.send(_ServiceRequest<A, B, C, D, O>(duration, runnableIndex, runnable));
     return completer.future;
   }
 
   void setServerPort(SendPort serverPort) {
-    this._serverPort = serverPort;
+    _serverPort = serverPort;
   }
 
   Future close() async {
@@ -205,7 +183,7 @@ class _IsolateServer {
   final AExceptionFactory _default = AExceptionFactory();
   final AExceptionFactory _exceptionFactory;
   final ReceivePort _receivePort = ReceivePort();
-  SendPort _clientPort;
+  final SendPort _clientPort;
   static SendPort loggerPort;
 
   _IsolateServer(this._clientPort, this._tag, this._exceptionFactory) {
@@ -219,37 +197,32 @@ class _IsolateServer {
                 await Future.delayed(request.delay);
               }
 
-              final result = await request.invoke();
+              final result = await request.call();
               _clientPort.send(_ServiceResponse(request.seq, result));
-            } catch (err, stack) {
-              AExceptionFactory _factory = _exceptionFactory ?? _default;
+            } on Exception catch (err, stack) {
+              final AExceptionFactory _factory = _exceptionFactory ?? _default;
               final exception = _factory.build(err, stack);
 
-              ThreadService._threadServiceLogger(
-                  LOG_LEVEL.ERROR, "_ThreadServer", exception.error);
+              ThreadService._threadServiceLogger(LOG_LEVEL.ERROR, "_ThreadServer", exception.error);
 
               try {
                 _clientPort.send(_ServiceError(request.seq, exception));
               } catch (ignore) {
-                _clientPort.send(_ServiceError(
-                    request.seq, _factory.defaultBuilder.build(err, stack)));
+                _clientPort.send(_ServiceError(request.seq, _factory.defaultBuilder.build(err, stack)));
               }
             }
           } else if (request is _ServiceDestroy) {
-            ThreadService._threadServiceLogger(
-                LOG_LEVEL.INFO, _tag, "thread server destroyed");
+            ThreadService._threadServiceLogger(LOG_LEVEL.INFO, _tag, "thread server destroyed");
             _receivePort.close();
           }
         },
         onError: (error) {
-          ThreadService._threadServiceLogger(
-              LOG_LEVEL.ERROR, _tag, "unknown error ${error.toString()}");
+          ThreadService._threadServiceLogger(LOG_LEVEL.ERROR, _tag, "unknown error ${error.toString()}");
         },
         cancelOnError: true,
         onDone: () {
           loggerPort = null;
-          ThreadService._threadServiceLogger(
-              LOG_LEVEL.INFO, _tag, "thread server closed");
+          ThreadService._threadServiceLogger(LOG_LEVEL.INFO, _tag, "thread server closed");
         });
 
     final response = _ServiceInitResponse(_receivePort.sendPort);
@@ -258,8 +231,7 @@ class _IsolateServer {
 }
 
 void _nativeService(_ServiceInit initParam) {
-  _IsolateServer(
-      initParam.clientPort, initParam.tag, initParam._exceptionFactory);
+  _IsolateServer(initParam.clientPort, initParam.tag, initParam._exceptionFactory);
 }
 
 bool isThread() {
@@ -284,16 +256,15 @@ class _ServiceInitResponse {
   _ServiceInitResponse(this.serverPort);
 }
 
-class _ServiceRequest<T, R> {
+class _ServiceRequest<A, B, C, D, O> {
   final int seq;
-  final T param;
   final Duration delay;
-  final ARunnable<T, R> runnable;
+  final Runnable<A, B, C, D, O> runnable;
 
-  _ServiceRequest(this.delay, this.seq, this.runnable, this.param);
+  _ServiceRequest(this.delay, this.seq, this.runnable);
 
-  FutureOr<R> invoke() async {
-    return await runnable(param);
+  FutureOr<O> call() async {
+    return await runnable.call();
   }
 }
 

@@ -42,14 +42,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _runDemo() async {
     //Run testIsolateRun in the isolated thread pool
-    ThreadPool.io.run(testThreadRun, "params for testThreadRun");
+    ThreadPool.io.run(fun1: testThreadRun, arg1: "params for testThreadRun");
     ThreadPool.addExceptionBuilder(MyExceptionBuilder());
     //Run testIsolateRun in the isolated thread pool with custom params
     final response = await ThreadPool.io
-        .run(
-            testStaticThreadRun,
-            _AnyParam(true, 200, 200.0, "stringParam",
-                {"kev1": 0, "key2": "any type"}, ["fasfa", 1000]))
+        .run(fun2: testStaticThreadRun, arg1: "Test", arg2: 123)
         .catchError((error) {
       //catch exception from isolate thread
     });
@@ -57,15 +54,15 @@ class _MyHomePageState extends State<MyHomePage> {
 
     //catch AException from isolate thread
     await ThreadPool.io
-        .run(testExceptionStaticThreadRun, "exception test")
+        .run(fun1: testExceptionStaticThreadRun, arg1: "exception test")
         .catchError((err) {
       print("exception from thread:${err.runtimeType}, $err");
     });
 
     //catch any exception from isolate thread
     await ThreadPool.io
-        .delay(Duration(seconds: 3), testLambdaExceptionStaticThreadRun,
-            "exception test")
+        .delay(Duration(seconds: 3),
+            fun1: testLambdaExceptionStaticThreadRun, arg1: "exception test")
         .catchError((err) {
       print("exception from thread:${err.runtimeType}, $err");
     });
@@ -94,9 +91,9 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   //define a static function
-  static _AnyResponse testStaticThreadRun(Object any) {
+  static _AnyResponse testStaticThreadRun(String param1, int param2) {
     ThreadPool.logger(LOG_LEVEL.INFO, "testIsolateRun",
-        "working on thread ${Isolate.current}, param:$any");
+        "working on thread ${Isolate.current}, param:$param1, $param2");
     return _AnyResponse(
         false,
         100,
@@ -126,23 +123,6 @@ bool testThreadRun(Object any) {
   return true;
 }
 
-class _AnyParam {
-  final bool boolParam;
-  final int intParam;
-  final double doubleParam;
-  final String stringParam;
-  final Map<String, dynamic> mapParam;
-  final List<dynamic> listParam;
-
-  _AnyParam(this.boolParam, this.intParam, this.doubleParam, this.stringParam,
-      this.mapParam, this.listParam);
-
-  @override
-  String toString() {
-    return "bool:$boolParam, int:$intParam, double:$doubleParam, string:$stringParam, map:$mapParam, list:$listParam";
-  }
-}
-
 class _AnyResponse {
   final bool boolParam;
   final int intParam;
@@ -165,7 +145,6 @@ class MyException extends AException {
 }
 
 class MyLambdaException {
-  ARunnable runnable = (param) {};
   MyLambdaException(String error);
 }
 
