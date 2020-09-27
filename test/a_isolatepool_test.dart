@@ -1,7 +1,7 @@
 import 'dart:isolate';
 
-import 'package:a_thread_pool/a_thread_pool.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:isolate_pool/pool/thread_pool.dart';
 
 void main() {
   test('test io thread', () async {

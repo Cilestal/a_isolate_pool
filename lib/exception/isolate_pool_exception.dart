@@ -19,11 +19,11 @@
 //OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 //WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-class AException implements Exception {
+class IsolatePoolException implements Exception {
   final String error;
   final Type exceptionType;
 
-  AException(this.error, {this.exceptionType});
+  IsolatePoolException(this.error, {this.exceptionType});
 
   @override
   String toString() {

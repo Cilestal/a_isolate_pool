@@ -1,7 +1,10 @@
 import 'dart:isolate';
 
-import 'package:a_thread_pool/a_thread_pool.dart';
 import 'package:flutter/material.dart';
+import 'package:isolate_pool/exception/isolate_pool_exception.dart';
+import 'package:isolate_pool/exception/isolate_pool_exception_factory.dart';
+import 'package:isolate_pool/pool/thread_pool.dart';
+import 'package:isolate_pool/pool/types.dart';
 
 void main() => runApp(MyApp());
 
@@ -52,7 +55,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
     print(response);
 
-    //catch AException from isolate thread
+    //catch IsolatePoolException from isolate thread
     await ThreadPool.io
         .run(fun1: testExceptionStaticThreadRun, arg1: "exception test")
         .catchError((err) {
@@ -140,7 +143,7 @@ class _AnyResponse {
   }
 }
 
-class MyException extends AException {
+class MyException extends IsolatePoolException {
   MyException(String error) : super(error);
 }
 
@@ -148,9 +151,9 @@ class MyLambdaException {
   MyLambdaException(String error);
 }
 
-class MyExceptionBuilder extends DefaultAExceptionBuilder {
+class MyExceptionBuilder extends DefaultIsolatePoolExceptionBuilder {
   @override
-  AException build(anyException, stack) {
+  IsolatePoolException build(anyException, stack) {
     return super.build(anyException, stack);
   }
 }

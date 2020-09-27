@@ -22,7 +22,7 @@
 import 'dart:io';
 import 'dart:math';
 
-import '../exception/a_exception_factory.dart';
+import '../exception/isolate_pool_exception_factory.dart';
 import '../exception/dio_exception_builder.dart';
 import 'runnable.dart';
 import 'thread_service.dart';
@@ -37,7 +37,7 @@ class ThreadPool {
   final Map<int, ThreadService> _threadMap = <int, ThreadService>{};
   int _lastRunIndex = -1;
 
-  static final AExceptionFactory _exceptionFactory = AExceptionFactory();
+  static final IsolatePoolExceptionFactory _exceptionFactory = IsolatePoolExceptionFactory();
 
   static set logger(AThreadLogger logger) {
     ThreadService.logger = logger;
@@ -47,11 +47,11 @@ class ThreadPool {
     return ThreadService.logger;
   }
 
-  static void addExceptionBuilder(AExceptionBuilder builder) {
+  static void addExceptionBuilder(IsolatePoolExceptionBuilder builder) {
     _exceptionFactory.addBuilder(builder);
   }
 
-  static void removeExceptionBuilder(AExceptionBuilder builder) {
+  static void removeExceptionBuilder(IsolatePoolExceptionBuilder builder) {
     _exceptionFactory.removeBuilder(builder);
   }
 

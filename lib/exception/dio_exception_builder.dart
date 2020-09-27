@@ -1,14 +1,14 @@
 import 'package:dio/dio.dart';
 
-import 'a_exception.dart';
-import 'a_exception_factory.dart';
+import 'isolate_pool_exception.dart';
+import 'isolate_pool_exception_factory.dart';
 
-class DioExceptionBuilder implements AExceptionBuilder {
+class DioExceptionBuilder implements IsolatePoolExceptionBuilder {
   @override
-  AException build(anyException, stack) {
+  IsolatePoolException build(anyException, stack) {
     if (anyException is DioError) {
-      if (anyException.error is AException) {
-        return anyException.error as AException;
+      if (anyException.error is IsolatePoolException) {
+        return anyException.error as IsolatePoolException;
       }
     }
     return null;

@@ -22,7 +22,7 @@
 import 'dart:async';
 import 'dart:isolate';
 
-import '../exception/a_exception_factory.dart';
+import '../exception/isolate_pool_exception_factory.dart';
 import 'runnable.dart';
 import 'types.dart';
 
@@ -42,7 +42,7 @@ class ThreadService {
 
   ///构建一个线程服务
   ///@param String tag 线程标识
-  ThreadService.build([String tag, AExceptionFactory factory]) : _tag = tag ?? _randomTag() {
+  ThreadService.build([String tag, IsolatePoolExceptionFactory factory]) : _tag = tag ?? _randomTag() {
     logger(LOG_LEVEL.INFO, "IsolatePool", "building isolate $_tag");
     _client = _IsolateClient(_tag, factory);
   }
@@ -91,7 +91,7 @@ class ThreadService {
 class _IsolateClient {
   Isolate _nativeThread;
   final String _tag;
-  final AExceptionFactory _exceptionFactory;
+  final IsolatePoolExceptionFactory _exceptionFactory;
 
   final Map<int, Completer> _responseMap = <int, Completer>{};
   int _reqSeqSeed = 0;
@@ -180,8 +180,8 @@ class _IsolateClient {
 
 class _IsolateServer {
   final String _tag;
-  final AExceptionFactory _default = AExceptionFactory();
-  final AExceptionFactory _exceptionFactory;
+  final IsolatePoolExceptionFactory _default = IsolatePoolExceptionFactory();
+  final IsolatePoolExceptionFactory _exceptionFactory;
   final ReceivePort _receivePort = ReceivePort();
   final SendPort _clientPort;
   static SendPort loggerPort;
@@ -200,7 +200,7 @@ class _IsolateServer {
               final result = await request.call();
               _clientPort.send(_ServiceResponse(request.seq, result));
             } on Exception catch (err, stack) {
-              final AExceptionFactory _factory = _exceptionFactory ?? _default;
+              final IsolatePoolExceptionFactory _factory = _exceptionFactory ?? _default;
               final exception = _factory.build(err, stack);
 
               ThreadService._threadServiceLogger(LOG_LEVEL.ERROR, "_ThreadServer", exception.error);
@@ -241,7 +241,7 @@ bool isThread() {
 class _ServiceInit {
   final SendPort clientPort;
   final String tag;
-  final AExceptionFactory _exceptionFactory;
+  final IsolatePoolExceptionFactory _exceptionFactory;
 
   _ServiceInit(this.clientPort, this.tag, this._exceptionFactory);
 }
